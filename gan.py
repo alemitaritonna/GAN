@@ -3,6 +3,7 @@ from tensorflow.keras import layers
 import numpy as np
 import os
 import cv2
+import sys
 
 # Configuramos los parametros de entrada
 LATENT_DIM = 150
@@ -124,6 +125,12 @@ def train_gan(gan, generator, discriminator, images, latent_dim, epochs=10, batc
 
 if __name__ == '__main__':
 
+    # Configurar el uso de GPU
+    physical_devices = tf.config.list_physical_devices('GPU')
+    if len(physical_devices) > 0:
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+        print('GPU memory growth:', tf.config.experimental.get_memory_growth(physical_devices[0]))
+
     # Directorio que contiene las imágenes de malezas
     data_dir = 'images/dataset/broadleaf'
 
@@ -140,4 +147,6 @@ if __name__ == '__main__':
     print("FIN!!!")
 
     # Entrenamos la GAN
-    train_gan(gan, generator, discriminator, images, LATENT_DIM, epochs=100, batch_size=32)
+    # Entrenar la GAN
+    with tf.device('/GPU:0'):  # Seleccionar la GPU
+        train_gan(gan, generator, discriminator, images, LATENT_DIM, epochs=100, batch_size=32)
