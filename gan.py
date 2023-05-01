@@ -79,20 +79,7 @@ def build_gan(generator, discriminator):
 
 
 
-# Guardamos las imágenes generadas
-def save_images(generator, epoch):
-    os.makedirs('images/gan', exist_ok=True)
-    r, c = 5, 5
-    noise = np.random.normal(0, 1, (r * c, LATENT_DIM))
-    gen_imgs = generator.predict(noise)
-    gen_imgs = 0.5 * gen_imgs + 0.5
-    gen_imgs = gen_imgs * 255
-    for i in range(r):
-        for j in range(c):
-            index = i * c + j
-            img = gen_imgs[index].astype(np.uint8)
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(f"images/gan/{epoch}_{index}.jpg", img)
+
 
 
 # Entrenamos la GAN
@@ -149,4 +136,4 @@ if __name__ == '__main__':
     # Entrenamos la GAN
     # Entrenar la GAN
     with tf.device('/GPU:0'):  # Seleccionar la GPU
-        train_gan(gan, generator, discriminator, images, LATENT_DIM, epochs=100, batch_size=32)
+        train_gan(gan, generator, discriminator, images, LATENT_DIM, epochs=150, batch_size=128)
