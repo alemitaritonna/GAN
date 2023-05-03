@@ -7,7 +7,7 @@ import sys
 
 # Configuramos los parametros de entrada
 LATENT_DIM = 150
-IMAGE_SHAPE = (128, 128, 3)
+IMAGE_SHAPE = (64, 64, 3)
 
 
 # Cargamos las imágenes de malezas
@@ -20,7 +20,7 @@ def load_weed_images(directory):
             img = cv2.resize(img, (IMAGE_SHAPE[0], IMAGE_SHAPE[1]))
             images.append(img)
             i = i + 1
-            print("image #", i)
+            print("Load image #", i)
     return np.array(images)
 
 
@@ -32,8 +32,8 @@ def normalize_images(images):
 # Creamos el generador
 def build_generator(latent_dim):
     model = tf.keras.Sequential([
-        tf.keras.layers.Dense(256 * 16 * 16, activation='relu', input_dim=latent_dim),
-        tf.keras.layers.Reshape((16, 16, 256)),
+        tf.keras.layers.Dense(256 * 8 * 8, activation='relu', input_dim=latent_dim),
+        tf.keras.layers.Reshape((8, 8, 256)),
         tf.keras.layers.Conv2DTranspose(256, (4,4), strides=(2,2), padding='same', activation='relu'),
         tf.keras.layers.Conv2DTranspose(128, (4,4), strides=(2,2), padding='same', activation='relu'),
         tf.keras.layers.Conv2DTranspose(64, (4,4), strides=(2,2), padding='same', activation='relu'),
@@ -79,7 +79,32 @@ def build_gan(generator, discriminator):
 
 
 
+# Guardamos las imágenes generadas
+def save_images(generator, epoch):
+    os.makedirs('images/gan', exist_ok=True)
+    r, c = 5, 5
+    noise = np.random.normal(0, 1, (r * c, LATENT_DIM))
+    gen_imgs = generator.predict(noise)
+    gen_imgs = 0.5 * gen_imgs + 0.5
+    gen_imgs = gen_imgs * 255
+    for i in range(r):
+        for j in range(c):
+            index = i * c + j
+            img = gen_imgs[index].astype(np.uint8)
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(f"images/gan/{epoch}_{index}.jpg", img)
 
+
+def evaluate_gan(gan, generator, discriminator, test_images, latent_dim):
+    # Generamos imágenes falsas
+    fake_images = generator.predict(np.random.normal(0, 1, (test_images.shape[0], latent_dim)))
+    # Evaluamos la pérdida del discriminador con imágenes reales y falsas
+    real_loss = discriminator.evaluate(test_images, np.ones((test_images.shape[0], 1)), verbose=0)
+    fake_loss = discriminator.evaluate(fake_images, np.zeros((test_images.shape[0], 1)), verbose=0)
+    # Evaluamos la pérdida de la GAN con imágenes falsas
+    gan_loss = gan.evaluate(np.random.normal(0, 1, (test_images.shape[0], latent_dim)), np.ones((test_images.shape[0], 1)), verbose=0)
+    # Devolvemos los valores de pérdida
+    return real_loss, fake_loss, gan_loss
 
 
 # Entrenamos la GAN
@@ -104,6 +129,10 @@ def train_gan(gan, generator, discriminator, images, latent_dim, epochs=10, batc
             # Entrenamos la GAN con imágenes falsas
             gan_loss = gan.train_on_batch(np.random.normal(0, 1, (batch_size, latent_dim)), y_real)
             print(f"Epoch: {i+1}/{epochs}, Batch: {j+1}/{batch_count}, GAN loss: {gan_loss}")
+
+        # Evaluamos la GAN después de cada época
+        real_loss, fake_loss, gan_loss = evaluate_gan(gan, generator, discriminator, images, latent_dim)
+        print(f"Real loss: {real_loss}, Fake loss: {fake_loss}, GAN loss: {gan_loss}")
 
         # Generamos imágenes para visualizar el progreso
         save_images(generator, epoch=i+1)
@@ -136,4 +165,4 @@ if __name__ == '__main__':
     # Entrenamos la GAN
     # Entrenar la GAN
     with tf.device('/GPU:0'):  # Seleccionar la GPU
-        train_gan(gan, generator, discriminator, images, LATENT_DIM, epochs=150, batch_size=128)
+        train_gan(gan, generator, discriminator, images, LATENT_DIM, epochs=150, batch_size=64)
